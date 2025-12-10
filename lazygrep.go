@@ -706,22 +706,36 @@ func main() {
 		}
 	}
 
-	// 2. Channels
-	fileJobs := make(chan string, 2000) // Buffer file paths
 	results := make(chan string, 2000)
+	done := make(chan bool)
+
+	// Start Collector (Deduplicator)
+	go collector(results, done)
+
+	// 2. Check for Stdin (Piped input)
+	stat, _ := os.Stdin.Stat()
+	isPiped := (stat.Mode() & os.ModeCharDevice) == 0
+
+	if isPiped {
+		// --- STDIN MODE ---
+		// scanStream directly on os.Stdin
+		scanStream(os.Stdin, extractor, results)
+		close(results) // We are done
+		<-done         // Wait for printer
+		return
+	}
+
+	// --- FILE WALK MODE (Default) ---
+	fileJobs := make(chan string, 2000)
 	var wg sync.WaitGroup
 
-	// 3. Start Workers (File Processors)
+	// Start Workers
 	for w := 0; w < workerCount; w++ {
 		wg.Add(1)
 		go worker(extractor, fileJobs, results, &wg)
 	}
 
-	// 4. Start Collector (Deduplicator)
-	done := make(chan bool)
-	go collector(results, done)
-
-	// 5. Walk the Filesystem (Producer)
+	// Walk the Filesystem
 	go func() {
 		err := filepath.WalkDir(".", func(path string, d os.DirEntry, err error) error {
 			if err != nil {
@@ -749,20 +763,36 @@ func main() {
 		close(fileJobs) // Done finding files
 	}()
 
-	// 6. Wait
 	wg.Wait()      // Wait for all files to be processed
 	close(results) // Tell collector we are done
 	<-done         // Wait for printing to finish
 }
 
+// scanStream reads from any reader (file or stdin) and sends matches to results
+func scanStream(r io.Reader, ext extractor, results chan<- string) {
+	scanner := bufio.NewScanner(r)
+	// Allow scanning very long lines (up to 1MB)
+	buf := make([]byte, 0, 64*1024)
+	scanner.Buffer(buf, 1024*1024)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		matches := ext.regex.FindAllString(line, -1)
+		for _, m := range matches {
+			if ext.normalize != nil {
+				m = ext.normalize(m)
+			}
+			if ext.validate != nil && !ext.validate(m) {
+				continue
+			}
+			results <- m
+		}
+	}
+}
+
 // worker takes a file path, opens it, scans it, and extracts data
 func worker(ext extractor, jobs <-chan string, results chan<- string, wg *sync.WaitGroup) {
 	defer wg.Done()
-
-	// Reuse buffer for scanner to reduce GC pressure
-	// But since we open many files, we allocate inside loop or use a sync.Pool if strictly necessary.
-	// For simplicity and safety, we allocate per file here.
-
 	for path := range jobs {
 		processFile(path, ext, results)
 	}
@@ -788,24 +818,8 @@ func processFile(path string, ext extractor, results chan<- string) {
 	// Rewind file for scanner
 	file.Seek(0, 0)
 
-	scanner := bufio.NewScanner(file)
-	// Allow scanning very long lines (up to 1MB)
-	buf := make([]byte, 0, 64*1024)
-	scanner.Buffer(buf, 1024*1024)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		matches := ext.regex.FindAllString(line, -1)
-		for _, m := range matches {
-			if ext.normalize != nil {
-				m = ext.normalize(m)
-			}
-			if ext.validate != nil && !ext.validate(m) {
-				continue
-			}
-			results <- m
-		}
-	}
+	// Use the shared scanner logic
+	scanStream(file, ext, results)
 }
 
 // collector handles deduplication and printing
