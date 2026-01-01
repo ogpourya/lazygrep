@@ -88,10 +88,7 @@ var modeExtractors = map[string]extractor{
 	"jwt":              {regex: jwtRegex, validate: isJWT, description: "JWT tokens"},
 	"base64":           {regex: base64Regex, validate: isValidBase64, description: "Base64 strings (20+ chars)"},
 	"uuids":            {regex: uuidRegex, description: "UUIDs"},
-	"api-key-patterns": {regex: regexp.MustCompile(`(?i)\bapi[_-]?key['\"]?\s*[:=]\s*['\"]?([a-zA-Z0-9_\-]{16,})`), description: "Generic API key patterns"},
-	"secret-patterns":  {regex: regexp.MustCompile(`(?i)\b(?:secret|password|passwd|pwd)['\"]?\s*[:=]\s*['\"]?([^\s'"]{6,})`), description: "Password/secret assignment"},
 	"bearer-tokens":    {regex: regexp.MustCompile(`\bBearer\s+[A-Za-z0-9_\-\.]{20,}`), description: "Bearer token headers"},
-	"env-secrets":      {regex: regexp.MustCompile(`(?i)(?:PASSWORD|SECRET|KEY|TOKEN)=[^\s]+`), description: "Environment secrets"},
 
 	// Connection strings
 	"connection-strings":  {regex: regexp.MustCompile(`(?i)(?:mongodb|mysql|postgres|jdbc|sqlserver)://[^\s"'<>]+`), description: "Database connection strings"},
@@ -172,16 +169,13 @@ var modeExtractors = map[string]extractor{
 	"shodan-key":    {regex: regexp.MustCompile(`\b[A-Za-z0-9]{32}\b`), validate: isLikelyShodan, description: "Shodan API keys"},
 
 	// Productivity tools
-	"airtable-key":  {regex: regexp.MustCompile(`\bkey[A-Za-z0-9]{14}\b`), description: "Airtable API keys"},
 	"notion-token":  {regex: regexp.MustCompile(`\bsecret_[A-Za-z0-9]{43}\b`), description: "Notion integration tokens"},
 	"figma-token":   {regex: regexp.MustCompile(`\bfigd_[A-Za-z0-9_-]{43}\b`), description: "Figma personal tokens"},
+	"airtable-key":  {regex: regexp.MustCompile(`\bkey[A-Za-z0-9]{14}\b`), description: "Airtable API keys"},
 
-	// Framework secrets
-	"laravel-app-key":    {regex: regexp.MustCompile(`APP_KEY=base64:[A-Za-z0-9+/=]{44}`), description: "Laravel app keys"},
-	"django-secret-key":  {regex: regexp.MustCompile(`SECRET_KEY\s*=\s*['\"][^'\"]{40,}['\"]`), description: "Django secret keys"},
-	"rails-secret-key":   {regex: regexp.MustCompile(`secret_key_base:\s*[a-f0-9]{128}`), description: "Rails secret_key_base"},
-	"jwt-secrets":        {regex: regexp.MustCompile(`(?i)jwt[_-]?secret['\"]?\s*[:=]\s*['\"]([^'\"]{16,})['\"]`), description: "JWT signing secrets"},
-	"oauth-client-secrets": {regex: regexp.MustCompile(`(?i)client[_-]?secret['\"]?\s*[:=]\s*['\"]([^'\"]{20,})['\"]`), description: "OAuth client secrets"},
+	// Framework secrets (specific patterns only)
+	"laravel-app-key":  {regex: regexp.MustCompile(`APP_KEY=base64:[A-Za-z0-9+/=]{44}`), description: "Laravel app keys"},
+	"rails-secret-key": {regex: regexp.MustCompile(`secret_key_base:\s*[a-f0-9]{128}`), description: "Rails secret_key_base"},
 
 	// Private keys
 	"ssh-private-keys": {regex: regexp.MustCompile(`-----BEGIN (?:RSA|OPENSSH|DSA|EC) PRIVATE KEY-----`), description: "SSH private key headers"},
