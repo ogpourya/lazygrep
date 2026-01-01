@@ -91,15 +91,6 @@ var modeExtractors = map[string]extractor{
 	"api-key-patterns": {regex: regexp.MustCompile(`(?i)\bapi[_-]?key['\"]?\s*[:=]\s*['\"]?([a-zA-Z0-9_\-]{16,})`), description: "Generic API key patterns"},
 	"secret-patterns":  {regex: regexp.MustCompile(`(?i)\b(?:secret|password|passwd|pwd)['\"]?\s*[:=]\s*['\"]?([^\s'"]{6,})`), description: "Password/secret assignment"},
 	"bearer-tokens":    {regex: regexp.MustCompile(`\bBearer\s+[A-Za-z0-9_\-\.]{20,}`), description: "Bearer token headers"},
-	"auth-headers":     {regex: regexp.MustCompile(`Authorization:\s*[^\r\n]+`), description: "Authorization header values"},
-
-	// Web paths & files
-	"api-endpoints":    {regex: regexp.MustCompile(`(?:https?://[^\s"']+)?/api/v?\d+/[^\s"'<>]*`), description: "API endpoint paths"},
-	"admin-paths":      {regex: regexp.MustCompile(`(?i)/(admin|administrator|manager|dashboard|panel)/[^\s"']*`), description: "Admin panel paths"},
-	"login-paths":      {regex: regexp.MustCompile(`(?i)/(login|signin|auth|authenticate)[^\s"']*`), description: "Login endpoint paths"},
-	"backup-files":     {regex: regexp.MustCompile(`\b[\w.-]+\.(?:bak|backup|old|orig|save|tmp)\b`), description: "Backup file extensions"},
-	"config-files":     {regex: regexp.MustCompile(`\b[\w.-]*(?:config|conf|settings|env)[\w.-]*\b`), description: "Config file names"},
-	"key-files":        {regex: regexp.MustCompile(`\b[\w.-]*(?:key|pem|crt|cer|p12|pfx|jks)[\w.-]*\b`), description: "Cryptographic key files"},
 	"env-secrets":      {regex: regexp.MustCompile(`(?i)(?:PASSWORD|SECRET|KEY|TOKEN)=[^\s]+`), description: "Environment secrets"},
 
 	// Connection strings
@@ -198,13 +189,6 @@ var modeExtractors = map[string]extractor{
 
 	// Security identifiers
 	"cve-ids":  {regex: cveRegex, validate: isValidCVE, description: "CVE identifiers"},
-
-	// Exposures & debug paths
-	"debug-enabled":      {regex: regexp.MustCompile(`(?i)debug['\"]?\s*[:=]\s*(?:true|1|yes)`), description: "Debug mode enabled"},
-	"test-credentials":   {regex: regexp.MustCompile(`(?i)(?:test|demo|admin):(?:test|demo|password|admin|123)`), description: "Common test credentials"},
-	"weak-passwords":     {regex: regexp.MustCompile(`(?i)(?:password|passwd|pwd)['\"]?\s*[:=]\s*['\"]?(?:password|123456|admin|test|root)['\"]?`), description: "Hardcoded weak passwords"},
-	"suspicious-base64":  {regex: base64Regex, validate: isSuspiciousBase64, description: "Base64 with suspicious decoded content"},
-	"cors-any-origin":    {regex: regexp.MustCompile(`Access-Control-Allow-Origin:\s*\*`), description: "CORS wildcard origin"},
 }
 
 var validTLDs = make(map[string]struct{})
