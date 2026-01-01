@@ -18,7 +18,6 @@ import (
 	"time"
 )
 
-// Config
 const (
 	ianaURL      = "https://data.iana.org/TLD/tlds-alpha-by-domain.txt"
 	workerCount  = 30
@@ -37,26 +36,25 @@ var skipDirs = map[string]struct{}{
 	"build":        {},
 }
 
-// Regex patterns (pre-compiled for common patterns)
 var (
-	domainRegex     = regexp.MustCompile(`(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}`)
-	urlRegex        = regexp.MustCompile(`https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)`)
-	emailRegex      = regexp.MustCompile(`[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}`)
-	ipv4Regex       = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}\b`)
-	ipv6Regex       = regexp.MustCompile(`\b(?:[0-9A-Fa-f]{1,4}:){2,7}[0-9A-Fa-f]{1,4}\b|\b::1\b|\b::\b`)
-	ipRegex         = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}\b|\b(?:[0-9A-Fa-f]{1,4}:){2,7}[0-9A-Fa-f]{1,4}\b|\b::1\b|\b::\b`)
-	uuidRegex       = regexp.MustCompile(`\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\b`)
-	sha256Regex     = regexp.MustCompile(`\b[a-fA-F0-9]{64}\b`)
-	sha1Regex       = regexp.MustCompile(`\b[a-fA-F0-9]{40}\b`)
-	md5Regex        = regexp.MustCompile(`\b[a-fA-F0-9]{32}\b`)
-	jwtRegex        = regexp.MustCompile(`\b[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b`)
-	cardRegex       = regexp.MustCompile(`\b(?:\d[ -]?){13,19}\b`)
-	awsKeyRegex     = regexp.MustCompile(`\b(?:AKIA|ASIA)[0-9A-Z]{16}\b`)
-	slackHookRegex  = regexp.MustCompile(`https://hooks\.slack\.com/services/[A-Za-z0-9]+/[A-Za-z0-9]+/[A-Za-z0-9]+`)
-	bcryptRegex     = regexp.MustCompile(`\$2[aby]\$\d{2}\$[./0-9A-Za-z]{53}`)
-	base64Regex     = regexp.MustCompile(`\b(?:[A-Za-z0-9+/]{20,}={0,2})\b`)
-	ipv4PortRegex   = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}:\d{1,5}\b`)
-	cveRegex        = regexp.MustCompile(`CVE-\d{4}-\d{4,7}`)
+	domainRegex    = regexp.MustCompile(`(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}`)
+	urlRegex       = regexp.MustCompile(`https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)`)
+	emailRegex     = regexp.MustCompile(`[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}`)
+	ipv4Regex      = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}\b`)
+	ipv6Regex      = regexp.MustCompile(`\b(?:[0-9A-Fa-f]{1,4}:){2,7}[0-9A-Fa-f]{1,4}\b|\b::1\b|\b::\b`)
+	ipRegex        = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}\b|\b(?:[0-9A-Fa-f]{1,4}:){2,7}[0-9A-Fa-f]{1,4}\b|\b::1\b|\b::\b`)
+	uuidRegex      = regexp.MustCompile(`\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\b`)
+	sha256Regex    = regexp.MustCompile(`\b[a-fA-F0-9]{64}\b`)
+	sha1Regex      = regexp.MustCompile(`\b[a-fA-F0-9]{40}\b`)
+	md5Regex       = regexp.MustCompile(`\b[a-fA-F0-9]{32}\b`)
+	jwtRegex       = regexp.MustCompile(`\b[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b`)
+	cardRegex      = regexp.MustCompile(`\b(?:\d[ -]?){13,19}\b`)
+	awsKeyRegex    = regexp.MustCompile(`\b(?:AKIA|ASIA)[0-9A-Z]{16}\b`)
+	slackHookRegex = regexp.MustCompile(`https://hooks\.slack\.com/services/[A-Za-z0-9]+/[A-Za-z0-9]+/[A-Za-z0-9]+`)
+	bcryptRegex    = regexp.MustCompile(`\$2[aby]\$\d{2}\$[./0-9A-Za-z]{53}`)
+	base64Regex    = regexp.MustCompile(`\b(?:[A-Za-z0-9+/]{20,}={0,2})\b`)
+	ipv4PortRegex  = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}:\d{1,5}\b`)
+	cveRegex       = regexp.MustCompile(`CVE-\d{4}-\d{4,7}`)
 )
 
 type extractor struct {
@@ -68,7 +66,6 @@ type extractor struct {
 }
 
 var modeExtractors = map[string]extractor{
-	// Core network patterns
 	"domains":        {regex: domainRegex, requiresTLD: true, normalize: lowerTrim, validate: isValidDomain, description: "Domain names with valid TLDs"},
 	"urls":           {regex: urlRegex, requiresTLD: true, normalize: strings.TrimSpace, validate: isValidURL, description: "HTTP/HTTPS URLs"},
 	"emails":         {regex: emailRegex, requiresTLD: true, normalize: lowerTrim, validate: isValidEmail, description: "Email addresses"},
@@ -80,46 +77,37 @@ var modeExtractors = map[string]extractor{
 	"ipv4-with-port": {regex: ipv4PortRegex, validate: isValidIPv4Port, description: "IPv4:port pairs"},
 	"ipv4-cidrs":     {regex: regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}/\d{1,2}\b`), validate: isValidCIDR, description: "IPv4 CIDR notation"},
 
-	// Hashes & crypto
-	"md5":              {regex: md5Regex, description: "MD5 hashes"},
-	"sha1":             {regex: sha1Regex, description: "SHA-1 hashes"},
-	"sha256":           {regex: sha256Regex, description: "SHA-256 hashes"},
-	"bcrypt":           {regex: bcryptRegex, description: "bcrypt hashes"},
-	"jwt":              {regex: jwtRegex, validate: isJWT, description: "JWT tokens"},
-	"base64":           {regex: base64Regex, validate: isValidBase64, description: "Base64 strings (20+ chars)"},
-	"uuids":            {regex: uuidRegex, description: "UUIDs"},
-	"bearer-tokens":    {regex: regexp.MustCompile(`\bBearer\s+[A-Za-z0-9_\-\.]{20,}`), description: "Bearer token headers"},
+	"md5":           {regex: md5Regex, description: "MD5 hashes"},
+	"sha1":          {regex: sha1Regex, description: "SHA-1 hashes"},
+	"sha256":        {regex: sha256Regex, description: "SHA-256 hashes"},
+	"bcrypt":        {regex: bcryptRegex, description: "bcrypt hashes"},
+	"jwt":           {regex: jwtRegex, validate: isJWT, description: "JWT tokens"},
+	"base64":        {regex: base64Regex, validate: isValidBase64, description: "Base64 strings (20+ chars)"},
+	"uuids":         {regex: uuidRegex, description: "UUIDs"},
+	"bearer-tokens": {regex: regexp.MustCompile(`\bBearer\s+[A-Za-z0-9_\-\.]{20,}`), description: "Bearer token headers"},
 
-	// Connection strings
 	"connection-strings":  {regex: regexp.MustCompile(`(?i)(?:mongodb|mysql|postgres|jdbc|sqlserver)://[^\s"'<>]+`), description: "Database connection strings"},
 	"embedded-passwords":  {regex: regexp.MustCompile(`(?i)://[^:]+:[^@]{4,}@[^\s"'<>]+`), description: "URLs with embedded passwords"},
 	"cloud-metadata-urls": {regex: regexp.MustCompile(`http://169\.254\.169\.254/[^\s"']*`), description: "Cloud metadata service URLs"},
 
-	// AWS
-	"aws-keys":          {regex: awsKeyRegex, description: "AWS access keys (AKIA/ASIA)"},
-	"aws-secret-keys":   {regex: regexp.MustCompile(`\b[A-Za-z0-9/+=]{40}\b`), validate: isLikelyAWSSecret, description: "AWS secret access keys"},
+	"aws-keys":        {regex: awsKeyRegex, description: "AWS access keys (AKIA/ASIA)"},
+	"aws-secret-keys": {regex: regexp.MustCompile(`\b[A-Za-z0-9/+=]{40}\b`), validate: isLikelyAWSSecret, description: "AWS secret access keys"},
 
-	// GCP
-	"gcp-api-keys":         {regex: regexp.MustCompile(`\bAIza[0-9A-Za-z\-_]{35}\b`), description: "GCP API keys"},
+	"gcp-api-keys": {regex: regexp.MustCompile(`\bAIza[0-9A-Za-z\-_]{35}\b`), description: "GCP API keys"},
 
-	// Azure
-	"azure-storage-keys":  {regex: regexp.MustCompile(`\b[A-Za-z0-9+/]{88}==\b`), description: "Azure storage account keys"},
+	"azure-storage-keys": {regex: regexp.MustCompile(`\b[A-Za-z0-9+/]{88}==\b`), description: "Azure storage account keys"},
 
-	// GitHub & GitLab
 	"github-pat":   {regex: regexp.MustCompile(`\bghp_[A-Za-z0-9]{36,255}\b`), description: "GitHub personal tokens"},
 	"github-oauth": {regex: regexp.MustCompile(`\bgho_[A-Za-z0-9]{36,255}\b`), description: "GitHub OAuth tokens"},
 	"github-repos": {regex: regexp.MustCompile(`github\.com[/:]([A-Za-z0-9_-]+/[A-Za-z0-9_.-]+)`), description: "GitHub repo references"},
 	"gitlab-pat":   {regex: regexp.MustCompile(`\bglpat-[A-Za-z0-9_-]{20}\b`), description: "GitLab PATs"},
 
-	// Slack
 	"slack-webhook":    {regex: slackHookRegex, description: "Slack webhook URLs"},
 	"slack-bot-token":  {regex: regexp.MustCompile(`\bxoxb-\d{10,13}-\d{10,13}-[A-Za-z0-9]{24,32}\b`), description: "Slack bot tokens"},
 	"slack-user-token": {regex: regexp.MustCompile(`\bxoxp-\d{10,13}-\d{10,13}-\d{10,13}-[A-Za-z0-9]{32}\b`), description: "Slack user tokens"},
 
-	// Payment APIs
-	"credit-cards":       {regex: cardRegex, normalize: stripSpacesAndHyphens, validate: isValidCard, description: "Credit card numbers (Luhn)"},
+	"credit-cards": {regex: cardRegex, normalize: stripSpacesAndHyphens, validate: isValidCard, description: "Credit card numbers (Luhn)"},
 
-	// Communication APIs
 	"twilio-sid":      {regex: regexp.MustCompile(`\bAC[0-9a-fA-F]{32}\b`), description: "Twilio account SIDs"},
 	"sendgrid-keys":   {regex: regexp.MustCompile(`\bSG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}\b`), description: "SendGrid API keys"},
 	"mailgun-keys":    {regex: regexp.MustCompile(`\bkey-[0-9a-f]{32}\b`), description: "Mailgun API keys"},
@@ -127,28 +115,20 @@ var modeExtractors = map[string]extractor{
 	"discord-bot":     {regex: regexp.MustCompile(`\b[NM][A-Za-z0-9]{23,25}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,38}\b`), description: "Discord bot tokens"},
 	"discord-webhook": {regex: regexp.MustCompile(`https://discord(?:app)?\.com/api/webhooks/\d+/[A-Za-z0-9_-]+`), description: "Discord webhook URLs"},
 
-	// CI/CD
 
-	// Package managers
 
-	// Database URLs
-	"postgres-urls":  {regex: regexp.MustCompile(`postgres(?:ql)?://[^\s"'<>]+`), description: "PostgreSQL URLs"},
-	"mysql-urls":     {regex: regexp.MustCompile(`mysql://[^\s"'<>]+`), description: "MySQL URLs"},
-	"mongodb-urls":   {regex: regexp.MustCompile(`mongodb(?:\+srv)?://[^\s"'<>]+`), description: "MongoDB URLs"},
-	"redis-urls":     {regex: regexp.MustCompile(`redis(?:s)?://[^\s"'<>]+`), description: "Redis URLs"},
+	"postgres-urls": {regex: regexp.MustCompile(`postgres(?:ql)?://[^\s"'<>]+`), description: "PostgreSQL URLs"},
+	"mysql-urls":    {regex: regexp.MustCompile(`mysql://[^\s"'<>]+`), description: "MySQL URLs"},
+	"mongodb-urls":  {regex: regexp.MustCompile(`mongodb(?:\+srv)?://[^\s"'<>]+`), description: "MongoDB URLs"},
+	"redis-urls":    {regex: regexp.MustCompile(`redis(?:s)?://[^\s"'<>]+`), description: "Redis URLs"},
 
-	// SaaS APIs
 
-	// Productivity tools
 
-	// Framework secrets (specific patterns only)
 
-	// Private keys
 	"ssh-private-keys": {regex: regexp.MustCompile(`-----BEGIN (?:RSA|OPENSSH|DSA|EC) PRIVATE KEY-----`), description: "SSH private key headers"},
 	"pgp-private-keys": {regex: regexp.MustCompile(`-----BEGIN PGP PRIVATE KEY BLOCK-----`), description: "PGP private key blocks"},
 
-	// Security identifiers
-	"cve-ids":  {regex: cveRegex, validate: isValidCVE, description: "CVE identifiers"},
+	"cve-ids": {regex: cveRegex, validate: isValidCVE, description: "CVE identifiers"},
 }
 
 var validTLDs = make(map[string]struct{})
@@ -572,7 +552,6 @@ func isUUID(s string) bool {
 	return err == nil && len(s) == 36
 }
 
-// Heuristic validators
 func isLikelyAWSSecret(s string) bool { return len(s) == 40 && isAlphaNumPlus(s) }
 func isLikelyDatadog(s string) bool   { return len(s) == 32 }
 func isLikelyAuth0(s string) bool     { return len(s) == 64 }
