@@ -98,23 +98,12 @@ var modeExtractors = map[string]extractor{
 	// AWS
 	"aws-keys":          {regex: awsKeyRegex, description: "AWS access keys (AKIA/ASIA)"},
 	"aws-secret-keys":   {regex: regexp.MustCompile(`\b[A-Za-z0-9/+=]{40}\b`), validate: isLikelyAWSSecret, description: "AWS secret access keys"},
-	"s3-buckets":        {regex: regexp.MustCompile(`\b[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]\.s3(?:[.-][a-z0-9-]+)?\.amazonaws\.com\b`), description: "S3 bucket domains"},
-	"s3-urls":           {regex: regexp.MustCompile(`s3://[a-z0-9.-]+(?:/[^\s"'<>]*)?`), description: "S3 protocol URLs"},
-	"lambda-urls":       {regex: regexp.MustCompile(`https://[a-z0-9]+\.lambda-url\.[a-z0-9-]+\.on\.aws`), description: "AWS Lambda function URLs"},
-	"apigateway-urls":   {regex: regexp.MustCompile(`https://[a-z0-9]+\.execute-api\.[a-z0-9-]+\.amazonaws\.com`), description: "API Gateway URLs"},
-	"rds-endpoints":     {regex: regexp.MustCompile(`\b[a-z0-9.-]+\.rds\.amazonaws\.com\b`), description: "RDS database endpoints"},
 
 	// GCP
 	"gcp-api-keys":         {regex: regexp.MustCompile(`\bAIza[0-9A-Za-z\-_]{35}\b`), description: "GCP API keys"},
-	"gcp-service-accounts": {regex: regexp.MustCompile(`\b[a-z0-9-]+@[a-z0-9-]+\.iam\.gserviceaccount\.com\b`), description: "GCP service accounts"},
-	"gcs-buckets":          {regex: regexp.MustCompile(`gs://[a-z0-9._-]+`), description: "Google Cloud Storage buckets"},
-	"firebase-urls":        {regex: regexp.MustCompile(`https://[a-z0-9-]+\.firebaseio\.com`), description: "Firebase Realtime DB URLs"},
 
 	// Azure
 	"azure-storage-keys":  {regex: regexp.MustCompile(`\b[A-Za-z0-9+/]{88}==\b`), description: "Azure storage account keys"},
-	"azure-connection":    {regex: regexp.MustCompile(`DefaultEndpointsProtocol=https;AccountName=[^;]+;AccountKey=[^;]+`), description: "Azure storage connections"},
-	"azure-blob-urls":     {regex: regexp.MustCompile(`https://[\w-]+\.blob\.core\.windows\.net`), description: "Azure Blob Storage URLs"},
-	"azure-keyvault-urls": {regex: regexp.MustCompile(`https://[a-z0-9-]+\.vault\.azure\.net`), description: "Key Vault URLs"},
 
 	// GitHub & GitLab
 	"github-pat":   {regex: regexp.MustCompile(`\bghp_[A-Za-z0-9]{36,255}\b`), description: "GitHub personal tokens"},
@@ -128,11 +117,7 @@ var modeExtractors = map[string]extractor{
 	"slack-user-token": {regex: regexp.MustCompile(`\bxoxp-\d{10,13}-\d{10,13}-\d{10,13}-[A-Za-z0-9]{32}\b`), description: "Slack user tokens"},
 
 	// Payment APIs
-	"stripe-live-secret": {regex: regexp.MustCompile(`\bsk_live_[0-9a-zA-Z]{24,99}\b`), description: "Stripe live secret keys"},
-	"stripe-test-secret": {regex: regexp.MustCompile(`\bsk_test_[0-9a-zA-Z]{24,99}\b`), description: "Stripe test secret keys"},
 	"credit-cards":       {regex: cardRegex, normalize: stripSpacesAndHyphens, validate: isValidCard, description: "Credit card numbers (Luhn)"},
-	"bitcoin-addresses":  {regex: regexp.MustCompile(`\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b`), description: "Bitcoin addresses"},
-	"ethereum-addresses": {regex: regexp.MustCompile(`\b0x[a-fA-F0-9]{40}\b`), description: "Ethereum addresses"},
 
 	// Communication APIs
 	"twilio-sid":      {regex: regexp.MustCompile(`\bAC[0-9a-fA-F]{32}\b`), description: "Twilio account SIDs"},
@@ -143,14 +128,8 @@ var modeExtractors = map[string]extractor{
 	"discord-webhook": {regex: regexp.MustCompile(`https://discord(?:app)?\.com/api/webhooks/\d+/[A-Za-z0-9_-]+`), description: "Discord webhook URLs"},
 
 	// CI/CD
-	"docker-hub-token": {regex: regexp.MustCompile(`\bdckr_pat_[A-Za-z0-9_-]{32,}\b`), description: "Docker Hub access tokens"},
-	"heroku-api-key":   {regex: regexp.MustCompile(`\b[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\b`), validate: isUUID, description: "Heroku API keys"},
-	"terraform-cloud":  {regex: regexp.MustCompile(`\b[A-Za-z0-9]{14}\.atlasv1\.[A-Za-z0-9_-]{60,}\b`), description: "Terraform Cloud tokens"},
 
 	// Package managers
-	"npm-token":   {regex: regexp.MustCompile(`\bnpm_[A-Za-z0-9]{36}\b`), description: "npm access tokens"},
-	"pypi-token":  {regex: regexp.MustCompile(`\bpypi-AgEI[0-9A-Za-z_-]{50,}\b`), description: "PyPI upload tokens"},
-	"nuget-key":   {regex: regexp.MustCompile(`\bNU-[A-Za-z0-9]{48}\b`), description: "NuGet API keys"},
 
 	// Database URLs
 	"postgres-urls":  {regex: regexp.MustCompile(`postgres(?:ql)?://[^\s"'<>]+`), description: "PostgreSQL URLs"},
@@ -159,23 +138,10 @@ var modeExtractors = map[string]extractor{
 	"redis-urls":     {regex: regexp.MustCompile(`redis(?:s)?://[^\s"'<>]+`), description: "Redis URLs"},
 
 	// SaaS APIs
-	"datadog-key":   {regex: regexp.MustCompile(`\b[a-f0-9]{32}\b`), validate: isLikelyDatadog, description: "Datadog API keys"},
-	"newrelic-key":  {regex: regexp.MustCompile(`\bNRAK-[A-Z0-9]{27}\b`), description: "New Relic keys"},
-	"sentry-dsn":    {regex: regexp.MustCompile(`https://[a-f0-9]{32}@[^/]+\.ingest\.sentry\.io/\d+`), description: "Sentry DSN URLs"},
-	"cloudflare-key": {regex: regexp.MustCompile(`\b[a-f0-9]{37}\b`), description: "Cloudflare API keys"},
-	"auth0-secret":  {regex: regexp.MustCompile(`\b[A-Za-z0-9_-]{64}\b`), validate: isLikelyAuth0, description: "Auth0 client secrets"},
-	"okta-token":    {regex: regexp.MustCompile(`\b00[A-Za-z0-9_-]{38,42}\b`), description: "Okta API tokens"},
-	"mapbox-token":  {regex: regexp.MustCompile(`\bpk\.[a-zA-Z0-9]{60,}\b`), description: "Mapbox access tokens"},
-	"shodan-key":    {regex: regexp.MustCompile(`\b[A-Za-z0-9]{32}\b`), validate: isLikelyShodan, description: "Shodan API keys"},
 
 	// Productivity tools
-	"notion-token":  {regex: regexp.MustCompile(`\bsecret_[A-Za-z0-9]{43}\b`), description: "Notion integration tokens"},
-	"figma-token":   {regex: regexp.MustCompile(`\bfigd_[A-Za-z0-9_-]{43}\b`), description: "Figma personal tokens"},
-	"airtable-key":  {regex: regexp.MustCompile(`\bkey[A-Za-z0-9]{14}\b`), description: "Airtable API keys"},
 
 	// Framework secrets (specific patterns only)
-	"laravel-app-key":  {regex: regexp.MustCompile(`APP_KEY=base64:[A-Za-z0-9+/=]{44}`), description: "Laravel app keys"},
-	"rails-secret-key": {regex: regexp.MustCompile(`secret_key_base:\s*[a-f0-9]{128}`), description: "Rails secret_key_base"},
 
 	// Private keys
 	"ssh-private-keys": {regex: regexp.MustCompile(`-----BEGIN (?:RSA|OPENSSH|DSA|EC) PRIVATE KEY-----`), description: "SSH private key headers"},
