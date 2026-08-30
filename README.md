@@ -5,7 +5,7 @@ Fast pattern extraction tool for finding secrets, credentials, tokens, and infra
 ## Installation
 
 ```bash
-go install github.com/ogpourya/lazygrep@latest
+GOPROXY=direct go install github.com/ogpourya/lazygrep@latest
 ```
 
 ## Usage
