@@ -21,7 +21,8 @@ import (
 const (
 	ianaURL      = "https://data.iana.org/TLD/tlds-alpha-by-domain.txt"
 	workerCount  = 30
-	configFolder = ".config/ezgrep"
+	configFolder = ".config/lazygrep"
+	legacyConfig = ".config/ezgrep"
 	tldFile      = "tlds-alpha-by-domain.txt"
 )
 
@@ -41,13 +42,13 @@ var (
 	urlRegex       = regexp.MustCompile(`https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)`)
 	emailRegex     = regexp.MustCompile(`[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}`)
 	ipv4Regex      = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}\b`)
-	ipv6Regex      = regexp.MustCompile(`\b(?:[0-9A-Fa-f]{1,4}:){2,7}[0-9A-Fa-f]{1,4}\b|\b::1\b|\b::\b`)
-	ipRegex        = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}\b|\b(?:[0-9A-Fa-f]{1,4}:){2,7}[0-9A-Fa-f]{1,4}\b|\b::1\b|\b::\b`)
+	ipv6Regex      = regexp.MustCompile(`(?i)\b(?:[0-9a-f]{1,4}:){1,7}[0-9a-f]{1,4}\b|(?i)\b(?:[0-9a-f]{1,4}:){1,7}:|(?i)::(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4}\b|(?i)\b(?:[0-9a-f]{1,4}:)+:(?:[0-9a-f]{1,4}:)*[0-9a-f]{1,4}\b|(?i)::1\b|(?i)\b::\b`)
+	ipRegex        = regexp.MustCompile(`(?i)\b(?:\d{1,3}\.){3}\d{1,3}\b|\b(?:[0-9a-f]{1,4}:){1,7}[0-9a-f]{1,4}\b|\b(?:[0-9a-f]{1,4}:){1,7}:|::(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4}\b|\b(?:[0-9a-f]{1,4}:)+:(?:[0-9a-f]{1,4}:)*[0-9a-f]{1,4}\b|::1\b|\b::\b`)
 	uuidRegex      = regexp.MustCompile(`\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\b`)
 	sha256Regex    = regexp.MustCompile(`\b[a-fA-F0-9]{64}\b`)
 	sha1Regex      = regexp.MustCompile(`\b[a-fA-F0-9]{40}\b`)
 	md5Regex       = regexp.MustCompile(`\b[a-fA-F0-9]{32}\b`)
-	jwtRegex       = regexp.MustCompile(`\b[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b`)
+	jwtRegex       = regexp.MustCompile(`\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b`)
 	cardRegex      = regexp.MustCompile(`\b(?:\d[ -]?){13,19}\b`)
 	awsKeyRegex    = regexp.MustCompile(`\b(?:AKIA|ASIA)[0-9A-Z]{16}\b`)
 	slackHookRegex = regexp.MustCompile(`https://hooks\.slack\.com/services/[A-Za-z0-9]+/[A-Za-z0-9]+/[A-Za-z0-9]+`)
@@ -67,7 +68,7 @@ type extractor struct {
 
 var modeExtractors = map[string]extractor{
 	"domains":        {regex: domainRegex, requiresTLD: true, normalize: lowerTrim, validate: isValidDomain, description: "Domain names with valid TLDs"},
-	"urls":           {regex: urlRegex, requiresTLD: true, normalize: strings.TrimSpace, validate: isValidURL, description: "HTTP/HTTPS URLs"},
+	"urls":           {regex: urlRegex, requiresTLD: true, normalize: normalizeURL, validate: isValidURL, description: "HTTP/HTTPS URLs"},
 	"emails":         {regex: emailRegex, requiresTLD: true, normalize: lowerTrim, validate: isValidEmail, description: "Email addresses"},
 	"ipv4":           {regex: ipv4Regex, validate: isIPv4, description: "IPv4 addresses"},
 	"ipv6":           {regex: ipv6Regex, validate: isIPv6, description: "IPv6 addresses"},
@@ -83,11 +84,11 @@ var modeExtractors = map[string]extractor{
 	"bcrypt":        {regex: bcryptRegex, description: "bcrypt hashes"},
 	"jwt":           {regex: jwtRegex, validate: isJWT, description: "JWT tokens"},
 	"base64":        {regex: base64Regex, validate: isValidBase64, description: "Base64 strings (20+ chars)"},
-	"uuids":         {regex: uuidRegex, description: "UUIDs"},
+	"uuids":         {regex: uuidRegex, validate: isUUID, description: "UUIDs"},
 	"bearer-tokens": {regex: regexp.MustCompile(`\bBearer\s+[A-Za-z0-9_\-\.]{20,}`), description: "Bearer token headers"},
 
 	"connection-strings":  {regex: regexp.MustCompile(`(?i)(?:mongodb|mysql|postgres|jdbc|sqlserver)://[^\s"'<>]+`), description: "Database connection strings"},
-	"embedded-passwords":  {regex: regexp.MustCompile(`(?i)://[^:]+:[^@]{4,}@[^\s"'<>]+`), description: "URLs with embedded passwords"},
+	"embedded-passwords":  {regex: regexp.MustCompile(`(?i)://[^/:@\s]+:[^/@\s]{4,}@[^\s"'<>]+`), description: "URLs with embedded passwords"},
 	"cloud-metadata-urls": {regex: regexp.MustCompile(`http://169\.254\.169\.254/[^\s"']*`), description: "Cloud metadata service URLs"},
 
 	"aws-keys":        {regex: awsKeyRegex, description: "AWS access keys (AKIA/ASIA)"},
@@ -99,12 +100,12 @@ var modeExtractors = map[string]extractor{
 
 	"github-pat":   {regex: regexp.MustCompile(`\bghp_[A-Za-z0-9]{36,255}\b`), description: "GitHub personal tokens"},
 	"github-oauth": {regex: regexp.MustCompile(`\bgho_[A-Za-z0-9]{36,255}\b`), description: "GitHub OAuth tokens"},
-	"github-repos": {regex: regexp.MustCompile(`github\.com[/:]([A-Za-z0-9_-]+/[A-Za-z0-9_.-]+)`), description: "GitHub repo references"},
+	"github-repos": {regex: regexp.MustCompile(`github\.com[/:]([A-Za-z0-9_-]+/[A-Za-z0-9_.-]+)`), normalize: normalizeRepoRef, description: "GitHub repo references"},
 	"gitlab-pat":   {regex: regexp.MustCompile(`\bglpat-[A-Za-z0-9_-]{20}\b`), description: "GitLab PATs"},
 
 	"slack-webhook":    {regex: slackHookRegex, description: "Slack webhook URLs"},
-	"slack-bot-token":  {regex: regexp.MustCompile(`\bxoxb-\d{10,13}-\d{10,13}-[A-Za-z0-9]{24,32}\b`), description: "Slack bot tokens"},
-	"slack-user-token": {regex: regexp.MustCompile(`\bxoxp-\d{10,13}-\d{10,13}-\d{10,13}-[A-Za-z0-9]{32}\b`), description: "Slack user tokens"},
+	"slack-bot-token":  {regex: regexp.MustCompile(`\bxoxb-\d{9,13}-\d{9,13}-[A-Za-z0-9]{24,34}\b`), description: "Slack bot tokens"},
+	"slack-user-token": {regex: regexp.MustCompile(`\bxoxp-\d{9,13}-\d{9,13}-\d{9,13}-[A-Za-z0-9]{24,34}\b`), description: "Slack user tokens"},
 
 	"credit-cards": {regex: cardRegex, normalize: stripSpacesAndHyphens, validate: isValidCard, description: "Credit card numbers (Luhn)"},
 
@@ -115,15 +116,10 @@ var modeExtractors = map[string]extractor{
 	"discord-bot":     {regex: regexp.MustCompile(`\b[NM][A-Za-z0-9]{23,25}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,38}\b`), description: "Discord bot tokens"},
 	"discord-webhook": {regex: regexp.MustCompile(`https://discord(?:app)?\.com/api/webhooks/\d+/[A-Za-z0-9_-]+`), description: "Discord webhook URLs"},
 
-
-
 	"postgres-urls": {regex: regexp.MustCompile(`postgres(?:ql)?://[^\s"'<>]+`), description: "PostgreSQL URLs"},
 	"mysql-urls":    {regex: regexp.MustCompile(`mysql://[^\s"'<>]+`), description: "MySQL URLs"},
 	"mongodb-urls":  {regex: regexp.MustCompile(`mongodb(?:\+srv)?://[^\s"'<>]+`), description: "MongoDB URLs"},
 	"redis-urls":    {regex: regexp.MustCompile(`redis(?:s)?://[^\s"'<>]+`), description: "Redis URLs"},
-
-
-
 
 	"ssh-private-keys": {regex: regexp.MustCompile(`-----BEGIN (?:RSA|OPENSSH|DSA|EC) PRIVATE KEY-----`), description: "SSH private key headers"},
 	"pgp-private-keys": {regex: regexp.MustCompile(`-----BEGIN PGP PRIVATE KEY BLOCK-----`), description: "PGP private key blocks"},
@@ -137,6 +133,8 @@ var (
 	loopbackIPv4Net  = mustCIDR("127.0.0.0/8")
 	linkLocalIPv4Net = mustCIDR("169.254.0.0/16")
 	multicastIPv4Net = mustCIDR("224.0.0.0/4")
+	reservedIPv4Net  = mustCIDR("240.0.0.0/4")
+	thisNetIPv4Net   = mustCIDR("0.0.0.0/8")
 )
 
 func mustCIDR(c string) *net.IPNet {
@@ -189,8 +187,8 @@ func main() {
 	done := make(chan bool)
 	go collector(results, done)
 
-	stat, _ := os.Stdin.Stat()
-	isPiped := (stat.Mode() & os.ModeCharDevice) == 0
+	stat, err := os.Stdin.Stat()
+	isPiped := err == nil && (stat.Mode()&os.ModeCharDevice) == 0
 
 	if isPiped {
 		scanStreamMulti(os.Stdin, extractors, results)
@@ -235,23 +233,26 @@ func main() {
 }
 
 func scanStreamMulti(r io.Reader, extractors []extractor, results chan<- string) {
-	scanner := bufio.NewScanner(r)
-	buf := make([]byte, 0, 64*1024)
-	scanner.Buffer(buf, 1024*1024)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		for _, ext := range extractors {
-			matches := ext.regex.FindAllString(line, -1)
-			for _, m := range matches {
-				if ext.normalize != nil {
-					m = ext.normalize(m)
+	reader := bufio.NewReaderSize(r, 64*1024)
+	for {
+		line, err := reader.ReadString('\n')
+		if len(line) > 0 {
+			line = strings.TrimRight(line, "\r\n")
+			for _, ext := range extractors {
+				matches := ext.regex.FindAllString(line, -1)
+				for _, m := range matches {
+					if ext.normalize != nil {
+						m = ext.normalize(m)
+					}
+					if ext.validate != nil && !ext.validate(m) {
+						continue
+					}
+					results <- m
 				}
-				if ext.validate != nil && !ext.validate(m) {
-					continue
-				}
-				results <- m
 			}
+		}
+		if err != nil {
+			break
 		}
 	}
 }
@@ -322,30 +323,41 @@ func isValidURL(rawUrl string) bool {
 	if err != nil || u.Scheme == "" || u.Host == "" {
 		return false
 	}
-	return isValidDomain(u.Hostname())
+	host := u.Hostname()
+	return isValidDomain(host) || isIP(host)
 }
 
 func setupTLDs() error {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return err
+		loadFallbackTLDs()
+		return nil
 	}
 	configPath := filepath.Join(home, configFolder)
 	filePath := filepath.Join(configPath, tldFile)
 
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		os.MkdirAll(configPath, 0755)
+	legacyPath := filepath.Join(home, legacyConfig, tldFile)
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		if _, errLegacy := os.Stat(legacyPath); errLegacy == nil {
+			filePath = legacyPath
+		}
 	}
 
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		if err := downloadFile(filePath, ianaURL); err != nil {
-			return err
+	if info, err := os.Stat(filePath); os.IsNotExist(err) || (err == nil && info.Size() == 0) {
+		_ = os.MkdirAll(configPath, 0755)
+		targetFile := filepath.Join(configPath, tldFile)
+		if err := downloadFile(targetFile, ianaURL); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to download IANA TLDs (%v), using fallback TLDs\n", err)
+			loadFallbackTLDs()
+			return nil
 		}
+		filePath = targetFile
 	}
 
 	file, err := os.Open(filePath)
 	if err != nil {
-		return err
+		loadFallbackTLDs()
+		return nil
 	}
 	defer file.Close()
 
@@ -355,30 +367,68 @@ func setupTLDs() error {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		validTLDs[line] = struct{}{}
+		validTLDs[strings.ToUpper(line)] = struct{}{}
+	}
+	if len(validTLDs) == 0 {
+		loadFallbackTLDs()
 	}
 	return scanner.Err()
 }
 
-func downloadFile(filepath string, url string) error {
-	resp, err := http.Get(url)
+func loadFallbackTLDs() {
+	fallbacks := []string{
+		"COM", "ORG", "NET", "EDU", "GOV", "MIL", "INT", "IO", "CO", "DEV",
+		"AI", "APP", "INFO", "BIZ", "ME", "US", "UK", "CA", "DE", "JP",
+		"FR", "AU", "RU", "CH", "IT", "NL", "SE", "NO", "ES", "CC",
+		"TV", "XYZ", "ONLINE", "SITE", "TECH", "STORE", "SPACE", "WEBSITE",
+		"TOP", "CLUB", "PRO", "MOBI", "ASIA", "VIP", "LIVE", "WORLD",
+		"TODAY", "CLOUD", "AGENCY", "DIGITAL", "EMAIL", "NETWORK", "SOLUTIONS",
+		"SYSTEMS", "GLOBAL", "ZONE", "GROUP", "MEDIA", "SERVICES", "SECURITY",
+		"TOOLS", "TEAM", "STUDIO", "WORKS", "DESIGN", "LINK", "CLICK",
+		"NEWS", "BLOG", "SHOP", "LIFE", "ONE", "FUN", "WIN", "ICU",
+		"CN", "IN", "BR", "KR", "PL", "CZ", "FI", "DK", "BE", "AT",
+		"GR", "PT", "RO", "UA", "TR", "ZA", "MX", "SG", "NZ", "HK",
+		"IE", "IL",
+	}
+	for _, t := range fallbacks {
+		validTLDs[t] = struct{}{}
+	}
+}
+
+func downloadFile(filepath string, rawURL string) error {
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(rawURL)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
-	out, err := os.Create(filepath)
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected HTTP status: %s", resp.Status)
+	}
+
+	tmpFile := filepath + ".tmp"
+	out, err := os.Create(tmpFile)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
 
 	_, err = io.Copy(out, resp.Body)
-	return err
+	closeErr := out.Close()
+	if err != nil {
+		os.Remove(tmpFile)
+		return err
+	}
+	if closeErr != nil {
+		os.Remove(tmpFile)
+		return closeErr
+	}
+
+	return os.Rename(tmpFile, filepath)
 }
 
 func printUsage() {
-	fmt.Fprintf(os.Stderr, "Usage: lazygrep <mode>\n")
+	fmt.Fprintf(os.Stderr, "Usage: lazygrep <mode> [mode...]\n")
 	fmt.Fprintf(os.Stderr, "Modes:\n")
 	names := make([]string, 0, len(modeExtractors))
 	for name := range modeExtractors {
@@ -393,6 +443,16 @@ func printUsage() {
 
 func lowerTrim(s string) string {
 	return strings.ToLower(strings.TrimSpace(s))
+}
+
+func normalizeURL(s string) string {
+	s = strings.TrimSpace(s)
+	return strings.TrimRight(s, ".,;:)\"'>]")
+}
+
+func normalizeRepoRef(s string) string {
+	s = strings.TrimSpace(s)
+	return strings.TrimRight(s, ".,;:)\"'>]")
 }
 
 func stripSpacesAndHyphens(s string) string {
@@ -414,12 +474,12 @@ func isValidEmail(e string) bool {
 
 func isIPv4(ip string) bool {
 	parsed := net.ParseIP(ip)
-	return parsed != nil && strings.Count(ip, ":") == 0
+	return parsed != nil && parsed.To4() != nil
 }
 
 func isIPv6(ip string) bool {
 	parsed := net.ParseIP(ip)
-	return parsed != nil && strings.Contains(ip, ":")
+	return parsed != nil && parsed.To4() == nil && strings.Contains(ip, ":")
 }
 
 func isIP(ip string) bool {
@@ -432,16 +492,22 @@ func isJWT(token string) bool {
 	if len(parts) != 3 {
 		return false
 	}
-	for _, p := range parts[:2] {
-		if _, err := base64.RawURLEncoding.DecodeString(p); err != nil {
-			return false
-		}
+	header, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil || len(header) < 2 || header[0] != '{' || header[len(header)-1] != '}' {
+		return false
+	}
+	if !strings.Contains(string(header), `"alg"`) {
+		return false
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil || len(payload) < 2 || payload[0] != '{' || payload[len(payload)-1] != '}' {
+		return false
 	}
 	return true
 }
 
 func isValidCard(num string) bool {
-	if len(num) < 13 || len(num) > 19 {
+	if len(num) < 13 || len(num) > 19 || num[0] == '0' {
 		return false
 	}
 	sum := 0
@@ -460,7 +526,7 @@ func isValidCard(num string) bool {
 		sum += d
 		alt = !alt
 	}
-	return sum%10 == 0
+	return sum%10 == 0 && sum > 0
 }
 
 func isValidCIDR(c string) bool {
@@ -476,10 +542,11 @@ func isValidBase64(s string) bool {
 	if len(s) < 20 {
 		return false
 	}
-	if m := len(s) % 4; m != 0 {
-		s += strings.Repeat("=", 4-m)
+	trimmed := strings.TrimRight(s, "=")
+	if len(trimmed) < 20 {
+		return false
 	}
-	_, err := base64.StdEncoding.DecodeString(s)
+	_, err := base64.RawStdEncoding.DecodeString(trimmed)
 	return err == nil
 }
 
@@ -521,10 +588,10 @@ func isIPv4Public(ipStr string) bool {
 	if ip == nil || ip.To4() == nil {
 		return false
 	}
-	if ip.IsUnspecified() || ip.IsMulticast() {
+	if ip.IsUnspecified() || ip.IsMulticast() || ip.Equal(net.IPv4bcast) {
 		return false
 	}
-	if containsNet(ip, privateIPv4Nets) || loopbackIPv4Net.Contains(ip) || linkLocalIPv4Net.Contains(ip) || multicastIPv4Net.Contains(ip) {
+	if containsNet(ip, privateIPv4Nets) || loopbackIPv4Net.Contains(ip) || linkLocalIPv4Net.Contains(ip) || multicastIPv4Net.Contains(ip) || reservedIPv4Net.Contains(ip) || thisNetIPv4Net.Contains(ip) {
 		return false
 	}
 	return true
@@ -548,26 +615,16 @@ func isValidCVE(value string) bool {
 }
 
 func isUUID(s string) bool {
-	_, err := strconv.ParseUint(strings.ReplaceAll(s, "-", ""), 16, 128)
-	return err == nil && len(s) == 36
+	clean := strings.ReplaceAll(s, "-", "")
+	if len(clean) != 32 || len(s) != 36 {
+		return false
+	}
+	_, err1 := strconv.ParseUint(clean[:16], 16, 64)
+	_, err2 := strconv.ParseUint(clean[16:], 16, 64)
+	return err1 == nil && err2 == nil
 }
 
 func isLikelyAWSSecret(s string) bool { return len(s) == 40 && isAlphaNumPlus(s) }
-func isLikelyDatadog(s string) bool   { return len(s) == 32 }
-func isLikelyAuth0(s string) bool     { return len(s) == 64 }
-func isLikelyShodan(s string) bool    { return len(s) == 32 }
-
-func isSuspiciousBase64(s string) bool {
-	if len(s) < 40 {
-		return false
-	}
-	decoded, err := base64.StdEncoding.DecodeString(s)
-	if err != nil {
-		return false
-	}
-	lower := strings.ToLower(string(decoded))
-	return strings.Contains(lower, "password") || strings.Contains(lower, "secret") || strings.Contains(lower, "key")
-}
 
 func isAlphaNumPlus(s string) bool {
 	for _, c := range s {
